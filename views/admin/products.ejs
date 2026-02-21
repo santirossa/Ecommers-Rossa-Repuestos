@@ -1,0 +1,162 @@
+ <div class="page-actions">
+    <a href="/admin/products/new" class="btn btn-primary">
+        <i class="fas fa-plus"></i> Nuevo Producto
+    </a>
+    <div class="search-box">
+        <i class="fas fa-search"></i>
+        <input type="text" id="searchInput" placeholder="Buscar productos..." onkeyup="searchProducts()">
+    </div>
+    </div>
+
+    <div class="panel">
+        <div class="panel-body">
+            <div class="table-responsive">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Imagen</th>
+                            <th>Nombre</th>
+                            <th>N° Parte</th>
+                            <th>Categoría</th>
+                            <th>Precio</th>
+                            <th>Stock</th>
+                            <th>Estado</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="productsBody">
+                        <tr>
+                            <td colspan="8" class="text-center">Cargando...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="pagination" id="pagination"></div>
+        </div>
+    </div>
+
+    <!-- Modal Confirmar Eliminación -->
+    <div class="modal" id="deleteModal">
+        <div class="modal-content">
+            <h3><i class="fas fa-exclamation-triangle"></i> Confirmar Eliminación</h3>
+            <p>¿Está seguro que desea eliminar este producto? Esta acción no se puede deshacer.</p>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
+                <button class="btn btn-danger" id="confirmDeleteBtn">Eliminar</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentPage = 1;
+
+        document.addEventListener('DOMContentLoaded', () => loadProducts());
+
+        async function loadProducts(page = 1) {
+            currentPage = page;
+            const search = document.getElementById('searchInput').value;
+            let url = `/api/products/admin/all?page=${page}&limit=15`;
+    if (search) url += `&search=${encodeURIComponent(search)}`;
+
+    try {
+      const data = await apiGet(url);
+      if (data.success) {
+        renderProducts(data.data.products);
+        renderPagination(data.data.pagination);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  function renderProducts(products) {
+    const tbody = document.getElementById('productsBody');
+    if (products.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="8" class="text-center">No se encontraron productos</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = products.map(p => `
+      <tr>
+        <td>
+          <img src="${p.images && p.images[0] ? p.images[0] : '/admin/assets/img/no-image.png'}" 
+               alt="${p.name}" class="product-thumb" onerror="this.src='/admin/assets/img/no-image.png'">
+        </td>
+        <td><strong>${p.name}</strong></td>
+        <td>${p.partNumber || '-'}</td>
+        <td>${p.category?.name || '-'}</td>
+        <td>$${Number(p.price).toLocaleString('es-AR')}</td>
+        <td><span class="badge ${p.stock <= 5 ? 'badge-warning' : 'badge-success'}">${p.stock}</span></td>
+        <td>
+          <label class="switch">
+            <input type="checkbox" ${p.active ? 'checked' : ''} onchange="toggleProduct('${p._id}')">
+            <span class="slider"></span>
+          </label>
+        </td>
+        <td>
+          <div class="action-buttons">
+            <a href="/admin/products/edit/${p._id}" class="btn btn-sm btn-info" title="Editar">
+              <i class="fas fa-edit"></i>
+            </a>
+            <button class="btn btn-sm btn-danger" onclick="confirmDelete('${p._id}')" title="Eliminar">
+              <i class="fas fa-trash"></i>
+            </button>
+          </div>
+        </td>
+      </tr>
+    `).join('');
+  }
+
+  function renderPagination(pagination) {
+    const container = document.getElementById('pagination');
+    if (pagination.pages <= 1) { container.innerHTML = ''; return; }
+
+    let html = '';
+    for (let i = 1; i <= pagination.pages; i++) {
+      html += `<button class="btn btn-sm ${i === pagination.current ? 'btn-primary' : 'btn-secondary'}" 
+                onclick="loadProducts(${i})">${i}</button>`;
+    }
+    container.innerHTML = html;
+  }
+
+  let debounceTimer;
+  function searchProducts() {
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(() => loadProducts(1), 300);
+  }
+
+  async function toggleProduct(id) {
+    try {
+      const data = await apiFetch(`/api/products/${id}/toggle`, { method: 'PATCH' });
+      if (data.success) showToast(data.message, 'success');
+    } catch (err) {
+      showToast('Error al cambiar estado', 'error');
+      loadProducts(currentPage);
+    }
+  }
+
+  let deleteId = null;
+  function confirmDelete(id) {
+    deleteId = id;
+    document.getElementById('deleteModal').classList.add('show');
+    document.getElementById('confirmDeleteBtn').onclick = async () => {
+      try {
+        const data = await apiFetch(`/api/products/${deleteId}`, { method: 'DELETE' });
+        if (data.success) {
+          showToast(data.message, 'success');
+          loadProducts(currentPage);
+        }
+      } catch (err) {
+        showToast('Error al eliminar producto', 'error');
+      }
+      closeModal();
+    };
+  }
+
+  function closeModal() {
+    document.getElementById('deleteModal').classList.remove('show');
+    deleteId = null;
+  }
+    </script>
+    

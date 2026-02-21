@@ -1,0 +1,142 @@
+ <div class="dashboard-grid">
+    <!-- Stats Cards -->
+    <div class="stat-card" id="statProducts">
+        <div class="stat-icon" style="background: linear-gradient(135deg, #667eea, #764ba2);">
+            <i class="fas fa-boxes-stacked"></i>
+        </div>
+        <div class="stat-info">
+            <h3 id="totalProducts">-</h3>
+            <p>Productos</p>
+        </div>
+    </div>
+
+    <div class="stat-card" id="statOrders">
+        <div class="stat-icon" style="background: linear-gradient(135deg, #f093fb, #f5576c);">
+            <i class="fas fa-shopping-cart"></i>
+        </div>
+        <div class="stat-info">
+            <h3 id="totalOrders">-</h3>
+            <p>Pedidos</p>
+        </div>
+    </div>
+
+    <div class="stat-card" id="statRevenue">
+        <div class="stat-icon" style="background: linear-gradient(135deg, #4facfe, #00f2fe);">
+            <i class="fas fa-dollar-sign"></i>
+        </div>
+        <div class="stat-info">
+            <h3 id="totalRevenue">-</h3>
+            <p>Ingresos</p>
+        </div>
+    </div>
+
+    <div class="stat-card" id="statUsers">
+        <div class="stat-icon" style="background: linear-gradient(135deg, #43e97b, #38f9d7);">
+            <i class="fas fa-users"></i>
+        </div>
+        <div class="stat-info">
+            <h3 id="totalUsers">-</h3>
+            <p>Clientes</p>
+        </div>
+    </div>
+    </div>
+
+    <!-- Recent Orders & Low Stock -->
+    <div class="dashboard-panels">
+        <div class="panel">
+            <div class="panel-header">
+                <h2><i class="fas fa-clock"></i> Últimos Pedidos</h2>
+                <a href="/admin/orders" class="btn btn-sm">Ver todos</a>
+            </div>
+            <div class="panel-body">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Pedido</th>
+                            <th>Cliente</th>
+                            <th>Total</th>
+                            <th>Estado</th>
+                            <th>Fecha</th>
+                        </tr>
+                    </thead>
+                    <tbody id="recentOrdersBody">
+                        <tr>
+                            <td colspan="5" class="text-center">Cargando...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="panel">
+            <div class="panel-header">
+                <h2><i class="fas fa-exclamation-triangle"></i> Stock Bajo</h2>
+            </div>
+            <div class="panel-body">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Producto</th>
+                            <th>Nº Parte</th>
+                            <th>Stock</th>
+                        </tr>
+                    </thead>
+                    <tbody id="lowStockBody">
+                        <tr>
+                            <td colspan="3" class="text-center">Cargando...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', loadDashboard);
+
+        async function loadDashboard() {
+            try {
+                const data = await apiGet('/api/stats');
+                if (data.success) {
+                    const s = data.data;
+                    document.getElementById('totalProducts').textContent = s.activeProducts + '/' + s.totalProducts;
+                    document.getElementById('totalOrders').textContent = s.totalOrders;
+                    document.getElementById('totalRevenue').textContent = '$' + Number(s.totalRevenue).toLocaleString('es-AR');
+                    document.getElementById('totalUsers').textContent = s.totalUsers;
+
+                    // Recent orders
+                    const tbody = document.getElementById('recentOrdersBody');
+                    if (s.recentOrders.length === 0) {
+                        tbody.innerHTML = '<tr><td colspan="5" class="text-center">Sin pedidos aún</td></tr>';
+                    } else {
+                        tbody.innerHTML = s.recentOrders.map(o => `
+            <tr onclick="window.location='/admin/orders/${o._id}'" style="cursor:pointer">
+              <td>#${o._id.slice(-6).toUpperCase()}</td>
+              <td>${o.user?.name || 'N/A'}</td>
+              <td>$${Number(o.total).toLocaleString('es-AR')}</td>
+              <td><span class="badge badge-${o.status}">${o.status}</span></td>
+              <td>${new Date(o.createdAt).toLocaleDateString('es-AR')}</td>
+            </tr>
+          `).join('');
+        }
+
+        // Low stock
+        const lowBody = document.getElementById('lowStockBody');
+        if (s.lowStockProducts.length === 0) {
+          lowBody.innerHTML = '<tr><td colspan="3" class="text-center">Todo el stock OK</td></tr>';
+        } else {
+          lowBody.innerHTML = s.lowStockProducts.map(p => `
+            <tr>
+              <td>${p.name}</td>
+              <td>${p.partNumber || '-'}</td>
+              <td><span class="badge badge-warning">${p.stock}</span></td>
+            </tr>
+          `).join('');
+        }
+      }
+    } catch (error) {
+      console.error('Error cargando dashboard:', error);
+    }
+  }
+    </script>
+    

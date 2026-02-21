@@ -1,0 +1,98 @@
+ <div class="page-actions">
+    <div class="filter-group">
+        <select id="statusFilter" onchange="loadOrders(1)">
+            <option value="">Todos los estados</option>
+            <option value="pendiente">Pendiente</option>
+            <option value="pagado">Pagado</option>
+            <option value="preparando">Preparando</option>
+            <option value="enviado">Enviado</option>
+            <option value="entregado">Entregado</option>
+            <option value="cancelado">Cancelado</option>
+        </select>
+    </div>
+    </div>
+
+    <div class="panel">
+        <div class="panel-body">
+            <div class="table-responsive">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Pedido</th>
+                            <th>Cliente</th>
+                            <th>Email</th>
+                            <th>Items</th>
+                            <th>Total</th>
+                            <th>Estado</th>
+                            <th>Fecha</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="ordersBody">
+                        <tr>
+                            <td colspan="8" class="text-center">Cargando...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="pagination" id="pagination"></div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => loadOrders());
+
+        async function loadOrders(page = 1) {
+            const status = document.getElementById('statusFilter').value;
+            let url = `/api/orders?page=${page}&limit=20`;
+    if (status) url += `&status=${status}`;
+
+    try {
+      const data = await apiGet(url);
+      if (data.success) {
+        renderOrders(data.data.orders);
+        renderPagination(data.data.pagination, 'loadOrders');
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  function renderOrders(orders) {
+    const tbody = document.getElementById('ordersBody');
+    if (orders.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="8" class="text-center">No hay pedidos</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = orders.map(o => `
+      <tr>
+        <td><strong>#${o._id.slice(-6).toUpperCase()}</strong></td>
+        <td>${o.user?.name || 'N/A'}</td>
+        <td>${o.user?.email || 'N/A'}</td>
+        <td>${o.items.length} items</td>
+        <td>$${Number(o.total).toLocaleString('es-AR')}</td>
+        <td><span class="badge badge-${o.status}">${o.status}</span></td>
+        <td>${new Date(o.createdAt).toLocaleDateString('es-AR')}</td>
+        <td>
+          <a href="/admin/orders/${o._id}" class="btn btn-sm btn-info">
+            <i class="fas fa-eye"></i> Ver
+          </a>
+        </td>
+      </tr>
+    `).join('');
+  }
+
+  function renderPagination(pagination, fn) {
+    const container = document.getElementById('pagination');
+    if (pagination.pages <= 1) { container.innerHTML = ''; return; }
+    let html = '';
+    for (let i = 1; i <= pagination.pages; i++) {
+      html += `<button class="btn btn-sm ${i === pagination.current ? 'btn-primary' : 'btn-secondary'}" 
+                onclick="${fn}(${i})">${i}</button>`;
+    }
+    container.innerHTML = html;
+  }
+    </script>
+    
